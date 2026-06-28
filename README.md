@@ -1,4 +1,4 @@
-# Yumani 1.0
+# Yumani
 
 Yumani is a local-only LLM harness for memory-safe agent work.
 
@@ -32,7 +32,7 @@ The first version enforces that rule by default:
 ## Quick Start
 
 ```bash
-cd "/Users/yumin/dev/yumani 1.0"
+cd yumani
 python3 -m pip install -e .
 yumani setup
 ```

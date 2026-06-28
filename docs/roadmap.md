@@ -1,6 +1,6 @@
 # Roadmap
 
-Yumani 1.0 starts as the clean product extraction from the q36 local harness.
+Yumani starts as the clean product extraction from the q36 local harness.
 The first target is correctness and isolation; public polish comes after the
 local safety contract is trustworthy.
 
