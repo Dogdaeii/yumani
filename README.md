@@ -38,8 +38,17 @@ yumani setup
 ```
 
 `yumani setup` is a CUI installer. It scans common local runtimes, asks you to
-choose the model/profile/budgets, writes `~/.yumani/profiles.json`, and prints
-the proxy command.
+answer a short sequence of questions, writes `~/.yumani/profiles.json`, and
+prints the proxy command.
+
+The default wizard asks:
+
+1. whether to scan local runtimes;
+2. which local runtime to protect;
+3. which model to route to;
+4. what local profile name to use;
+5. which context budget preset to start with;
+6. whether to probe the provider and start the proxy now.
 
 For a known q36-style local endpoint:
 

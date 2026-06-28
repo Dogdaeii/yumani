@@ -31,9 +31,9 @@ python3 -m pip install -e .
 yumani setup
 ```
 
-`yumani setup` is intentionally a CUI flow. Read the scan results, choose the
-local runtime, choose the model, accept or adjust token budgets, then start the
-proxy only if the user asks for it.
+`yumani setup` is intentionally a question-driven CUI flow. Read the scan
+results, choose the local runtime, choose the model, pick a budget preset or
+custom budget, then start the proxy only if the user asks for it.
 
 ## Non-Interactive Agent Flow
 
@@ -79,4 +79,3 @@ Stop and ask the user before proceeding if:
 - the user asks you to change GPT/Claude/Gemini/Codex cloud profile routing;
 - provider probing exposes secrets or cloud API URLs;
 - installation would overwrite an unrelated existing profile.
-

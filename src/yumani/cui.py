@@ -39,6 +39,10 @@ def kv(label: str, value: object) -> None:
     print(f"{label:<18} {value}")
 
 
+def paragraph(text: str) -> None:
+    print(text)
+
+
 def prompt(default: str, label: str) -> str:
     suffix = f" [{default}]" if default else ""
     value = input(f"{label}{suffix}: ").strip()
@@ -85,4 +89,3 @@ def choose(label: str, options: Sequence[str], *, default_index: int = 0) -> int
         if 1 <= value <= len(options):
             return value - 1
         print(f"Choose 1-{len(options)}.")
-

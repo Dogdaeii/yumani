@@ -50,6 +50,8 @@ class CliTests(unittest.TestCase):
             payload = json.loads(setup.stdout)
             self.assertEqual(payload["status"], "OK")
             self.assertFalse(payload["cloud_profiles_affected"])
+            self.assertEqual(payload["budgets"]["safe_input_tokens"], 6000)
+            self.assertEqual(payload["budgets"]["output_tokens"], 1024)
             self.assertTrue((home / "profiles.json").exists())
 
     def test_setup_blocks_cloud_profile_name(self) -> None:

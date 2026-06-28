@@ -7,7 +7,7 @@ from pathlib import Path
 from typing import Any
 
 from .config import Profile, ensure_home, register_profile
-from .cui import choose, header, kv, prompt, prompt_int, prompt_yes_no, section, status_line
+from .cui import choose, header, kv, paragraph, prompt, prompt_int, prompt_yes_no, section, status_line
 from .provider import fetch_models
 from .safety import SafetyError, validate_local_endpoint
 
@@ -81,7 +81,7 @@ def slugify_profile_name(value: str) -> str:
 
 def default_budgets(model: str) -> dict[str, int]:
     lowered = model.lower()
-    if any(marker in lowered for marker in ("1b", "2b", "3b", "4b", "7b", "8b", "small", "mini")):
+    if any(marker in lowered for marker in ("0.5b", "1b", "2b", "3b", "4b", "7b", "8b", "tiny", "small", "mini")):
         return {"safe_input_tokens": 6000, "hard_input_tokens": 12000, "output_tokens": 1024}
     return {"safe_input_tokens": 12000, "hard_input_tokens": 24000, "output_tokens": 2048}
 
@@ -92,37 +92,117 @@ def selected_runtime_from_args(args: Any) -> CandidateRuntime | None:
     return None
 
 
+def is_interactive(args: Any) -> bool:
+    return not args.yes and not args.json and sys.stdin.isatty()
+
+
+def choose_runtime(scanned: list[CandidateRuntime], args: Any) -> CandidateRuntime | None:
+    ok = [item for item in scanned if item.status == "ok"]
+    if not is_interactive(args):
+        return ok[0] if ok else None
+
+    section("2. Runtime")
+    if ok:
+        options = [item.display() for item in ok] + ["Enter endpoint manually"]
+        choice = choose("Which local runtime should Yumani protect?", options)
+        if choice < len(ok):
+            return ok[choice]
+    endpoint = prompt("http://127.0.0.1:11434/v1", "OpenAI-compatible local endpoint")
+    return CandidateRuntime("Manual", endpoint, args.adapter, status="manual")
+
+
+def choose_model(runtime: CandidateRuntime, args: Any) -> str:
+    models = runtime.model_ids or []
+    explicit_model = args.model or ""
+    if is_interactive(args):
+        section("3. Model")
+        if models:
+            default_index = models.index(explicit_model) if explicit_model in models else 0
+            options = models + ["Enter model id manually"]
+            choice = choose("Which model should Yumani route to?", options, default_index=default_index)
+            if choice < len(models):
+                return models[choice]
+        return prompt(explicit_model, "Model id")
+    model = explicit_model or (models[0] if models else "")
+    if not model:
+        raise SafetyError("SETUP_REQUIRES_MODEL")
+    return model
+
+
+def choose_budgets(model: str, args: Any) -> dict[str, int]:
+    defaults = default_budgets(model)
+    if not is_interactive(args):
+        if args.safe_input_tokens:
+            defaults["safe_input_tokens"] = args.safe_input_tokens
+        if args.hard_input_tokens:
+            defaults["hard_input_tokens"] = args.hard_input_tokens
+        if args.output_tokens:
+            defaults["output_tokens"] = args.output_tokens
+        return defaults
+
+    section("5. Context Budget")
+    presets = [
+        ("Small local model", {"safe_input_tokens": 6000, "hard_input_tokens": 12000, "output_tokens": 1024}),
+        ("Balanced local model", {"safe_input_tokens": 12000, "hard_input_tokens": 24000, "output_tokens": 2048}),
+        ("Large/reasoning local model", {"safe_input_tokens": 24000, "hard_input_tokens": 48000, "output_tokens": 4096}),
+        ("Custom", {}),
+    ]
+    default_index = 0 if defaults["safe_input_tokens"] <= 6000 else 1
+    options = [
+        f"{name} ({budget.get('safe_input_tokens', 'custom')}/{budget.get('hard_input_tokens', 'custom')}/{budget.get('output_tokens', 'custom')})"
+        for name, budget in presets
+    ]
+    choice = choose("Choose a starting budget preset", options, default_index=default_index)
+    if presets[choice][0] != "Custom":
+        return dict(presets[choice][1])
+    return {
+        "safe_input_tokens": prompt_int(args.safe_input_tokens or defaults["safe_input_tokens"], "Safe input tokens"),
+        "hard_input_tokens": prompt_int(args.hard_input_tokens or defaults["hard_input_tokens"], "Hard input tokens"),
+        "output_tokens": prompt_int(args.output_tokens or defaults["output_tokens"], "Output tokens"),
+    }
+
+
+def probe_provider(endpoint: str, timeout: float) -> tuple[str, str | None, list[str]]:
+    try:
+        payload = fetch_models(endpoint, timeout=timeout)
+    except Exception as exc:  # noqa: BLE001
+        return "FAIL", str(exc), []
+    return "OK", None, model_ids_from_payload(payload)
+
+
 def run_setup(args: Any) -> dict[str, Any]:
     home = ensure_home(Path(args.home).expanduser() if args.home else None)
     if not args.json:
-        header("Yumani Setup", "Local-only LLM harness configuration")
+        header("Yumani Setup", "Answer a few questions. Cloud profiles will not be touched.")
         kv("home", home)
         kv("cloud profiles", "not touched")
 
+    interactive = is_interactive(args)
     manual = selected_runtime_from_args(args)
     scanned: list[CandidateRuntime] = []
     runtime: CandidateRuntime | None = manual
     if not args.skip_scan and not manual:
-        if not args.json:
+        scan_now = True
+        if interactive:
+            section("1. Runtime Scan")
+            paragraph("Yumani can scan common local OpenAI-compatible endpoints first.")
+            scan_now = prompt_yes_no(True, "Scan local runtimes now")
+        if scan_now and not args.json and not interactive:
             section("1. Local Runtime Scan")
-        scanned = scan_runtimes(timeout=args.scan_timeout)
-        for item in scanned:
-            if not args.json:
-                detail = item.endpoint
-                if item.model_ids:
-                    detail += "  " + ", ".join(item.model_ids[:3])
-                status_line(item.name, item.status, detail)
-        ok = [item for item in scanned if item.status == "ok"]
-        if ok:
-            runtime = ok[0]
-            if not args.yes and sys.stdin.isatty():
-                section("2. Runtime")
-                runtime = ok[choose("Select runtime", [item.display() for item in ok])]
+        if scan_now:
+            scanned = scan_runtimes(timeout=args.scan_timeout)
+            for item in scanned:
+                if not args.json:
+                    detail = item.endpoint
+                    if item.model_ids:
+                        detail += "  " + ", ".join(item.model_ids[:3])
+                    status_line(item.name, item.status, detail)
+            runtime = choose_runtime(scanned, args)
 
     if runtime is None:
         if args.yes:
             raise SafetyError("SETUP_REQUIRES_ENDPOINT_WHEN_NO_RUNTIME_DETECTED")
-        if not sys.stdin.isatty():
+        if not interactive:
             raise SafetyError("SETUP_REQUIRES_TTY_OR_EXPLICIT_ENDPOINT")
         section("2. Runtime")
         endpoint = prompt("http://127.0.0.1:11434/v1", "OpenAI-compatible local endpoint")
@@ -133,31 +213,13 @@ def run_setup(args: Any) -> dict[str, Any]:
         raise SafetyError(safety.reason)
     endpoint = safety.normalized_url or runtime.endpoint
 
-    models = runtime.model_ids or []
-    model = args.model or (models[0] if models else "")
-    if not model:
-        if args.yes:
-            raise SafetyError("SETUP_REQUIRES_MODEL")
-        model = prompt("", "Model id")
-    elif models and not args.yes and sys.stdin.isatty():
-        section("3. Model")
-        model = models[choose("Select model", models, default_index=models.index(model) if model in models else 0)]
+    model = choose_model(runtime, args)
 
     profile_name = args.profile or slugify_profile_name(model)
-    budgets = default_budgets(model)
-    if not args.yes and sys.stdin.isatty():
+    if interactive:
         section("4. Profile")
-        profile_name = prompt(profile_name, "Profile name")
-        budgets["safe_input_tokens"] = prompt_int(args.safe_input_tokens or budgets["safe_input_tokens"], "Safe input tokens")
-        budgets["hard_input_tokens"] = prompt_int(args.hard_input_tokens or budgets["hard_input_tokens"], "Hard input tokens")
-        budgets["output_tokens"] = prompt_int(args.output_tokens or budgets["output_tokens"], "Output tokens")
-    else:
-        if args.safe_input_tokens:
-            budgets["safe_input_tokens"] = args.safe_input_tokens
-        if args.hard_input_tokens:
-            budgets["hard_input_tokens"] = args.hard_input_tokens
-        if args.output_tokens:
-            budgets["output_tokens"] = args.output_tokens
+        profile_name = prompt(profile_name, "Local profile name")
+    budgets = choose_budgets(model, args)
 
     profile = Profile(
         name=profile_name,
@@ -180,8 +242,14 @@ def run_setup(args: Any) -> dict[str, Any]:
 
     proxy_port = args.proxy_port
     start_proxy = bool(args.start_proxy)
-    if not args.yes and not args.json and sys.stdin.isatty():
-        section("5. Proxy")
+    provider_probe_status = "SKIPPED"
+    provider_probe_error = None
+    provider_probe_models: list[str] = []
+    if interactive:
+        section("6. Verification & Proxy")
+        if prompt_yes_no(True, "Probe provider now"):
+            provider_probe_status, provider_probe_error, provider_probe_models = probe_provider(endpoint, args.scan_timeout)
+            status_line("Provider probe", provider_probe_status, provider_probe_error or ", ".join(provider_probe_models[:3]))
         proxy_port = prompt_int(proxy_port, "Proxy port")
         start_proxy = prompt_yes_no(False, "Start proxy now")
 
@@ -201,6 +269,11 @@ def run_setup(args: Any) -> dict[str, Any]:
         },
         "proxy_url": f"http://127.0.0.1:{proxy_port}/v1",
         "scanned": [asdict(item) for item in scanned],
+        "provider_probe": {
+            "status": provider_probe_status,
+            "error": provider_probe_error,
+            "models": provider_probe_models,
+        },
         "cloud_profiles_affected": False,
         "next": f"Run `yumani serve --profile {profile.name} --port {proxy_port}`.",
         "start_proxy": start_proxy,
@@ -212,8 +285,8 @@ def run_setup(args: Any) -> dict[str, Any]:
         kv("profile", profile.name)
         kv("upstream", profile.endpoint)
         kv("proxy", payload["proxy_url"])
+        kv("provider probe", provider_probe_status)
         kv("registry", registry)
         kv("next", payload["next"])
 
     return payload
-

@@ -9,14 +9,17 @@ The main entrypoint is:
 yumani setup
 ```
 
-The setup flow:
+The default setup flow is question-driven:
 
-1. Prints the Yumani home and confirms cloud profiles are not touched.
-2. Scans common local OpenAI-compatible endpoints.
-3. Shows detected runtimes and model ids.
-4. Lets the user choose runtime, model, profile name, and budgets.
-5. Registers the local profile under `~/.yumani/profiles.json`.
-6. Prints the proxy command and local proxy URL.
+1. Confirms the Yumani home and that cloud profiles are not touched.
+2. Asks whether to scan common local OpenAI-compatible endpoints.
+3. Shows detected runtimes and lets the user choose one or enter a manual endpoint.
+4. Lets the user choose a discovered model or type a model id.
+5. Asks for the local profile name.
+6. Offers `Small`, `Balanced`, `Large/reasoning`, and `Custom` budget presets.
+7. Asks whether to probe the provider.
+8. Asks for the proxy port and whether to start the proxy immediately.
+9. Prints the client-facing proxy URL.
 
 For agent-driven installs or scripted setup:
 
@@ -36,4 +39,3 @@ The CUI is deliberately conservative:
 - it does not touch cloud profiles;
 - it rejects non-loopback endpoints unless a future explicit remote mode is
   implemented with a separate threat model.
-
