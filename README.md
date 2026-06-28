@@ -33,16 +33,28 @@ The first version enforces that rule by default:
 
 ```bash
 cd "/Users/yumin/dev/yumani 1.0"
-python3 -m yumani init
-python3 -m yumani profile add \
-  --name q36-local \
+python3 -m pip install -e .
+yumani setup
+```
+
+`yumani setup` is a CUI installer. It scans common local runtimes, asks you to
+choose the model/profile/budgets, writes `~/.yumani/profiles.json`, and prints
+the proxy command.
+
+For a known q36-style local endpoint:
+
+```bash
+yumani setup \
+  --yes \
+  --skip-scan \
+  --profile q36-local \
   --endpoint http://127.0.0.1:18036/v1 \
   --model q36 \
   --safe-input-tokens 12000 \
   --hard-input-tokens 24000 \
   --output-tokens 2048
-python3 -m yumani doctor --profile q36-local
-python3 -m yumani serve --profile q36-local --port 18137
+yumani doctor --profile q36-local
+yumani serve --profile q36-local --port 18137
 ```
 
 Point an OpenAI-compatible client at:
@@ -124,6 +136,10 @@ installed as explicit adapters.
 
 See [docs/roadmap.md](docs/roadmap.md) for the path from local extraction to a
 public-ready release.
+
+If you are asking a frontier coding agent to install Yumani for you, give it
+[AGENT_SETUP.md](AGENT_SETUP.md). That guide tells the agent exactly what it may
+and may not touch.
 
 ## Design Goal
 

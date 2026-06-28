@@ -22,6 +22,7 @@ from .context import build_context_pack
 from .provider import chat_completion, fetch_models, provider_fingerprint
 from .proxy import serve
 from .safety import SafetyError, validate_local_endpoint
+from .setup_flow import run_setup
 from .state import StateStore, project_root
 
 
@@ -56,6 +57,18 @@ def cmd_init(args: argparse.Namespace) -> int:
         "local_only": True,
     }
     emit(payload, as_json=args.json)
+    return 0
+
+
+def cmd_setup(args: argparse.Namespace) -> int:
+    payload = run_setup(args)
+    if args.json:
+        emit(payload, as_json=True)
+    if payload.get("start_proxy"):
+        profile = get_profile(payload["profile"], home_from_args(args))
+        print()
+        print(f"[yumani:serve] profile={profile.name} listening={payload['proxy_url']} upstream={profile.endpoint}")
+        serve(profile, home=home_from_args(args), host="127.0.0.1", port=args.proxy_port)
     return 0
 
 
@@ -322,6 +335,24 @@ def build_parser() -> argparse.ArgumentParser:
     add_common(init)
     init.set_defaults(func=cmd_init)
 
+    setup = sub.add_parser("setup")
+    add_common(setup)
+    setup.add_argument("--profile", default="")
+    setup.add_argument("--endpoint", default="")
+    setup.add_argument("--model", default="")
+    setup.add_argument("--adapter", default="openai-compatible")
+    setup.add_argument("--safe-input-tokens", type=int, default=0)
+    setup.add_argument("--hard-input-tokens", type=int, default=0)
+    setup.add_argument("--output-tokens", type=int, default=0)
+    setup.add_argument("--proxy-port", type=int, default=18137)
+    setup.add_argument("--scan-timeout", type=float, default=1.5)
+    setup.add_argument("--skip-scan", action="store_true")
+    setup.add_argument("--yes", action="store_true", help="Non-interactive setup. Requires endpoint/model if no runtime is detected.")
+    setup.add_argument("--dry-run", action="store_true")
+    setup.add_argument("--start-proxy", action="store_true", help="Start the proxy after registration.")
+    setup.add_argument("--force-local-profile-name", action="store_true")
+    setup.set_defaults(func=cmd_setup)
+
     profile = sub.add_parser("profile")
     profile_sub = profile.add_subparsers(dest="profile_command", required=True)
     profile_add = profile_sub.add_parser("add")
@@ -424,4 +455,3 @@ def main(argv: list[str] | None = None) -> int:
 
 if __name__ == "__main__":
     raise SystemExit(main())
-

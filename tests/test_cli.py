@@ -26,6 +26,55 @@ def run_cli(*args: str, home: Path, cwd: Path) -> subprocess.CompletedProcess[st
 
 
 class CliTests(unittest.TestCase):
+    def test_setup_noninteractive(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            base = Path(tmp)
+            home = base / "home"
+            project = base / "project"
+            project.mkdir()
+
+            setup = run_cli(
+                "setup",
+                "--yes",
+                "--skip-scan",
+                "--profile",
+                "local-small",
+                "--endpoint",
+                "http://127.0.0.1:11434/v1",
+                "--model",
+                "tiny",
+                home=home,
+                cwd=project,
+            )
+            self.assertEqual(setup.returncode, 0, setup.stderr)
+            payload = json.loads(setup.stdout)
+            self.assertEqual(payload["status"], "OK")
+            self.assertFalse(payload["cloud_profiles_affected"])
+            self.assertTrue((home / "profiles.json").exists())
+
+    def test_setup_blocks_cloud_profile_name(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            base = Path(tmp)
+            home = base / "home"
+            project = base / "project"
+            project.mkdir()
+            setup = run_cli(
+                "setup",
+                "--yes",
+                "--skip-scan",
+                "--profile",
+                "gpt55",
+                "--endpoint",
+                "http://127.0.0.1:11434/v1",
+                "--model",
+                "tiny",
+                home=home,
+                cwd=project,
+            )
+            self.assertEqual(setup.returncode, 10)
+            payload = json.loads(setup.stdout)
+            self.assertEqual(payload["status"], "BLOCKED")
+
     def test_cli_profile_and_context_pack(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             base = Path(tmp)
@@ -71,4 +120,3 @@ class CliTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
-

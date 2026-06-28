@@ -17,6 +17,8 @@ Status: complete.
 
 ## M1 - Adapter Contract
 
+- CUI setup flow for CLI-comfortable users.
+- Agent setup guide for Codex/Claude/GPT-assisted installs.
 - Define a generic recovery tool contract.
 - Provide a Hermes adapter for `YUMANI_INTERCEPT`.
 - Keep q36 `HARNESS_INTERCEPT` as a compatibility adapter, not a core concept.
@@ -51,4 +53,3 @@ Status: complete.
 - Security policy.
 - Contributor guide.
 - Example configs for common local runtimes.
-
