@@ -1,0 +1,13 @@
+{
+  "name": "m3-small",
+  "endpoint": "http://127.0.0.1:11434/v1",
+  "model": "qwen3:4b-instruct",
+  "adapter": "openai-compatible",
+  "state_dir_name": ".yumani",
+  "safe_input_tokens": 6000,
+  "hard_input_tokens": 12000,
+  "output_tokens": 1024,
+  "recovery_tool_name": "YUMANI_INTERCEPT",
+  "recovery_mode": "auto"
+}
+
