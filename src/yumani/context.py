@@ -16,9 +16,8 @@ FILE_CHAR_LIMIT = 8_000
 def estimate_tokens(text: str) -> int:
     if not text:
         return 0
-    wordish = max(1, int(len(text.split()) * 1.35))
-    charish = max(1, int(len(text) / 4))
-    return max(wordish, charish)
+    bytes_len = len(text.encode('utf-8', errors='replace'))
+    return max(1, int(bytes_len / 2.5))
 
 
 def hash_text(text: str) -> str:
@@ -157,28 +156,71 @@ def pack_chat_messages(payload: dict[str, Any], profile: Profile) -> tuple[dict[
         manifest["packed_estimated_tokens"] = original_tokens
         return payload, manifest
 
-    hard = [m for m in messages if m.get("role") in {"system", "developer"}]
+    import copy
+    hard = copy.deepcopy([m for m in messages if m.get("role") in {"system", "developer"}])
     tail: list[dict[str, Any]] = []
     tail_tokens = estimate_tokens(json.dumps(hard, ensure_ascii=False))
-    dropped_count = 0
-    for message in reversed(messages):
-        if message.get("role") in {"system", "developer"}:
-            continue
-        candidate_tokens = estimate_tokens(json.dumps(message, ensure_ascii=False))
-        if not tail or tail_tokens + candidate_tokens <= profile.safe_input_tokens:
-            tail.insert(0, message)
-            tail_tokens += candidate_tokens
-        else:
-            dropped_count += 1
+    dropped_messages: list[dict[str, Any]] = []
 
-    notice = {
-        "role": "system",
-        "content": (
-            f"[Yumani] {dropped_count} older messages were compacted to protect local memory. "
-            "Do not assume missing details are still verified; inspect files or state again when needed."
-        ),
-    }
-    packed_messages = hard + ([notice] if dropped_count else []) + tail
+    soft = [m for m in messages if m.get("role") not in {"system", "developer"}]
+    
+    turns = []
+    current_turn = []
+    for m in soft:
+        if m.get("role") == "user":
+            if current_turn:
+                turns.append(current_turn)
+            current_turn = [copy.deepcopy(m)]
+        else:
+            if not current_turn:
+                current_turn = [copy.deepcopy(m)]
+            else:
+                current_turn.append(copy.deepcopy(m))
+    if current_turn:
+        turns.append(current_turn)
+
+    tail_turns = []
+    for t in reversed(turns):
+        t_tokens = estimate_tokens(json.dumps(t, ensure_ascii=False))
+        if not tail_turns or tail_tokens + t_tokens <= profile.safe_input_tokens:
+            tail_turns.insert(0, t)
+            tail_tokens += t_tokens
+        else:
+            dropped_messages = t + dropped_messages
+
+    tail = []
+    for t in tail_turns:
+        tail.extend(t)
+
+    if dropped_messages:
+        import os
+        from pathlib import Path
+        archive_path = Path.home() / ".yumani" / "sessions" / profile.name / "archived_memory.md"
+        archive_path.parent.mkdir(parents=True, exist_ok=True)
+        with open(archive_path, "a", encoding="utf-8") as f:
+            for m in dropped_messages:
+                role = str(m.get("role", "unknown")).upper()
+                content = m.get("content", "")
+                if isinstance(content, str):
+                    f.write(f"### {role}\n{content}\n\n")
+                else:
+                    f.write(f"### {role}\n[Complex Content]\n\n")
+
+        notice_text = (
+            f"\n\n[Yumani Protocol: Strict Memory Limit Active]\n"
+            f"Your past conversation history is actively being deleted to prevent Out-Of-Memory (OOM) errors. "
+            f"To survive and prevent amnesia, you MUST actively maintain a 'YUMANI_STATE.md' or 'YUMANI_WIKI.md' file in your current project workspace.\n"
+            f"Before ending your turn, always summarize your progress, key decisions, and architecture (e.g., Python vs Go) into this file.\n"
+            f"If you lose context, DO NOT ask the user or guess; immediately read your project state file to recover your memory.\n"
+            f"(Note: {len(dropped_messages)} raw old messages were dumped to {archive_path} as a fail-safe. DO NOT use view_file to read it entirely as it will cause OOM. Use grep_search if absolutely necessary.)"
+        if hard:
+            if isinstance(hard[-1].get("content"), str):
+                hard[-1]["content"] += notice_text
+        elif tail:
+            if isinstance(tail[0].get("content"), str):
+                tail[0]["content"] += notice_text
+
+    packed_messages = hard + tail
     new_payload = dict(payload)
     new_payload["messages"] = packed_messages
     new_payload["model"] = payload.get("model") or profile.model
@@ -189,7 +231,7 @@ def pack_chat_messages(payload: dict[str, Any], profile: Profile) -> tuple[dict[
     manifest["actions"].append(
         {
             "type": "drop_old_messages",
-            "dropped_messages": dropped_count,
+            "dropped_messages": len(dropped_messages),
             "requested_max_tokens": requested_max,
             "capped_max_tokens": capped_max,
         }
