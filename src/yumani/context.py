@@ -213,14 +213,14 @@ def pack_chat_messages(payload: dict[str, Any], profile: Profile) -> tuple[dict[
             f"Before ending your turn, always summarize your progress, key decisions, and architecture (e.g., Python vs Go) into this file.\n"
             f"If you lose context, DO NOT ask the user or guess; immediately read your project state file to recover your memory.\n"
             f"(Note: {len(dropped_messages)} raw old messages were dumped to {archive_path} as a fail-safe. DO NOT use view_file to read it entirely as it will cause OOM. Use grep_search if absolutely necessary.)"
-        if hard:
-            if isinstance(hard[-1].get("content"), str):
-                hard[-1]["content"] += notice_text
-        elif tail:
-            if isinstance(tail[0].get("content"), str):
-                tail[0]["content"] += notice_text
+        )
 
     packed_messages = hard + tail
+    
+    if dropped_messages and packed_messages:
+        if isinstance(packed_messages[-1].get("content"), str):
+            packed_messages[-1]["content"] += notice_text
+
     new_payload = dict(payload)
     new_payload["messages"] = packed_messages
     new_payload["model"] = payload.get("model") or profile.model
