@@ -29,6 +29,8 @@ The first version enforces that rule by default:
 - Writes per-turn manifests for audits and crash recovery.
 - Calibrates safe input boundaries for a model fingerprint.
 
+> 📖 **Read more about how Yumani solves OOM and Recency Bias in [docs/principles.md](docs/principles.md).**
+
 ## Quick Start
 
 ```bash
