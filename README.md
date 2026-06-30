@@ -2,7 +2,9 @@
 
 Yumani is a local-only LLM harness for memory-safe agent work.
 
-It acts as a protective layer for local models that can run out of memory, lose context, repeat failed actions, or hang during long coding sessions.
+**Are you trying to run autonomous coding agents (like Claude Code, Aider, OpenHands) on a local model, but constantly hitting Out-Of-Memory (OOM) errors because of limited VRAM?**
+
+Yumani sits between your agent and your local LLM as an intelligent proxy. It mathematically guarantees your model will **never run out of memory (OOM)** and **never lose its long-term project context**, no matter how long the agent runs on your 16GB or 24GB hardware.
 
 ## Non-Negotiable Rule
 
