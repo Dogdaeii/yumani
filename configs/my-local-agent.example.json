@@ -1,7 +1,7 @@
 {
-  "name": "q36-local",
-  "endpoint": "http://127.0.0.1:18036/v1",
-  "model": "q36",
+  "name": "my-local-agent",
+  "endpoint": "http://127.0.0.1:11434/v1",
+  "model": "my-model-id",
   "adapter": "openai-compatible",
   "state_dir_name": ".yumani",
   "safe_input_tokens": 12000,

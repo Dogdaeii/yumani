@@ -10,7 +10,7 @@ from yumani.state import StateStore
 
 
 class ContextStateTests(unittest.TestCase):
-    def test_state_dir_is_yumani_not_q36(self) -> None:
+    def test_state_dir_is_yumani_not_legacy(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
             profile = Profile(name="local-small", endpoint="http://127.0.0.1:11434/v1", model="tiny").validate()
@@ -18,7 +18,7 @@ class ContextStateTests(unittest.TestCase):
             run = store.create_run("work", "hello", status="TEST")
             self.assertTrue((root / ".yumani" / "state.db").exists())
             self.assertTrue(run.artifact_dir.exists())
-            self.assertFalse((root / ".q36").exists())
+            self.assertFalse((root / ".legacy").exists())
 
     def test_context_pack_blocks_path_escape(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:

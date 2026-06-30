@@ -49,10 +49,10 @@ flowchart LR
    - Runs an empirical boundary search.
    - Stores safe budgets under `~/.yumani/calibration`.
 
-## Why Not Hardcode q36?
+## Why Not Hardcode legacy?
 
-The q36 harness proved the pattern, but the product must survive model swaps.
-Therefore q36-specific assumptions became profile fields:
+The legacy harness proved the pattern, but the product must survive model swaps.
+Therefore legacy-specific assumptions became profile fields:
 
 - model id;
 - endpoint URL;

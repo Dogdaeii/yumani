@@ -2,9 +2,7 @@
 
 Yumani is a local-only LLM harness for memory-safe agent work.
 
-It started as the generalized product form of the q36 harness: a protective
-layer for local models that can run out of memory, lose context, repeat failed
-actions, or hang during long coding sessions.
+It acts as a protective layer for local models that can run out of memory, lose context, repeat failed actions, or hang during long coding sessions.
 
 ## Non-Negotiable Rule
 
@@ -23,6 +21,8 @@ The first version enforces that rule by default:
 
 - Registers any OpenAI-compatible local model endpoint.
 - Packs large agent contexts before they reach a local model.
+- **Turn-Based Context Packing (v0.1.1)**: Safely archives old messages by full `[User -> Assistant -> Tool]` turns without breaking prompt templates (prevents HTTP 400 errors).
+- **Agent-Driven State Protocol (v0.1.1)**: Forces autonomous context retention (`YUMANI_STATE.md`) by dynamically injecting survival protocols at the bottom of the prompt to defeat **Recency Bias**.
 - Caps output budgets per profile.
 - Records wrapper-owned observations separately from model claims.
 - Provides an OpenAI-compatible proxy (`/v1/models`, `/v1/chat/completions`).
@@ -50,20 +50,20 @@ The default wizard asks:
 5. which context budget preset to start with;
 6. whether to probe the provider and start the proxy now.
 
-For a known q36-style local endpoint:
+For a generic local endpoint:
 
 ```bash
 yumani setup \
   --yes \
   --skip-scan \
-  --profile q36-local \
-  --endpoint http://127.0.0.1:18036/v1 \
-  --model q36 \
+  --profile my-local-agent \
+  --endpoint http://127.0.0.1:11434/v1 \
+  --model my-model-id \
   --safe-input-tokens 12000 \
   --hard-input-tokens 24000 \
   --output-tokens 2048
-yumani doctor --profile q36-local
-yumani serve --profile q36-local --port 18137
+yumani doctor --profile my-local-agent
+yumani serve --profile my-local-agent --port 18137
 ```
 
 Point an OpenAI-compatible client at:
@@ -96,7 +96,7 @@ python3 -m yumani serve --profile m3-small --port 18138
 
 ```bash
 python3 -m yumani context-pack \
-  --profile q36-local \
+  --profile my-local-agent \
   --project /path/to/project \
   --include src/main.py \
   "Review the current failure and suggest the next action."
@@ -120,7 +120,7 @@ Artifacts are written to:
 ## Calibration
 
 ```bash
-python3 -m yumani calibrate --profile q36-local --min-tokens 1024 --max-tokens 16000
+python3 -m yumani calibrate --profile my-local-agent --min-tokens 1024 --max-tokens 16000
 ```
 
 Calibration artifacts are saved under:
@@ -134,17 +134,15 @@ stress-testing the model.
 
 ## Current Scope
 
-This repository is the first clean product extraction from the q36 harness. It
-contains the portable core: profile registry, local-only isolation, state DB,
+This repository provides a portable core: profile registry, local-only isolation, state DB,
 context packing, proxy routing, and calibration.
 
-The q36-specific Hermes plugin bridge (`HARNESS_INTERCEPT`) is intentionally not
+Agent-specific plugin bridges (`HARNESS_INTERCEPT`) are intentionally not
 hardcoded here. Yumani exposes the generic recovery contract through profile
 metadata and proxy manifests; model/client-specific recovery tools should be
 installed as explicit adapters.
 
-See [docs/roadmap.md](docs/roadmap.md) for the path from local extraction to a
-public-ready release.
+See [docs/roadmap.md](docs/roadmap.md) for the path to a public-ready release.
 
 If you are asking a frontier coding agent to install Yumani for you, give it
 [AGENT_SETUP.md](AGENT_SETUP.md). That guide tells the agent exactly what it may

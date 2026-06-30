@@ -36,7 +36,7 @@ anthropic
 Examples:
 
 ```text
-q36-local -> http://127.0.0.1:18036/v1
+my-local-agent -> http://127.0.0.1:18036/v1
 m3-small  -> http://127.0.0.1:11434/v1
 mlx-dev   -> http://localhost:8080/v1
 ```

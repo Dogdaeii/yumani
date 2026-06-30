@@ -36,7 +36,7 @@ KNOWN_RUNTIMES = [
     CandidateRuntime("LM Studio", "http://127.0.0.1:1234/v1", "lm-studio"),
     CandidateRuntime("llama.cpp / MLX", "http://127.0.0.1:8080/v1", "openai-compatible"),
     CandidateRuntime("vLLM", "http://127.0.0.1:8000/v1", "openai-compatible"),
-    CandidateRuntime("oMLX q36-style", "http://127.0.0.1:18036/v1", "omlx"),
+    CandidateRuntime("oMLX Default", "http://127.0.0.1:18036/v1", "omlx"),
 ]
 
 
